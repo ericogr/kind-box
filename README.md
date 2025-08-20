@@ -20,7 +20,7 @@
 
 ## Usage
 
-### Running
+### Just Run
 ```bash
 wget -qO- https://raw.githubusercontent.com/ericogr/kind-box/main/script.sh | bash
 ```
