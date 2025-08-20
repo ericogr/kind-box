@@ -20,6 +20,10 @@
 
 ## Usage
 
+### Running
+```bash
+wget -qO- https://raw.githubusercontent.com/ericogr/kind-box/main/script.sh | bash
+```
 ### Clone the repository
 
 ```bash
