@@ -21,8 +21,8 @@ EOF
 echo "👉 Creating namespace $NAMESPACE"
 kubectl --kubeconfig "$KUBECONFIG_FILE" create namespace "$NAMESPACE"
 
-echo "👉 Creating default ServiceAccount in namespace $NAMESPACE"
-kubectl --kubeconfig "$KUBECONFIG_FILE" -n "$NAMESPACE" create serviceaccount default || true
+echo "👉 Creating sshx-shell ServiceAccount in namespace $NAMESPACE"
+kubectl --kubeconfig "$KUBECONFIG_FILE" -n "$NAMESPACE" create serviceaccount sshx-shell
 
 echo "👉 Creating ConfigMap with kubeconfig"
 kubectl --kubeconfig "$KUBECONFIG_FILE" -n "$NAMESPACE" create configmap kubeconfig-cm \
@@ -32,7 +32,7 @@ kubectl --kubeconfig "$KUBECONFIG_FILE" -n "$NAMESPACE" create configmap kubecon
 echo "👉 Ensuring admin permissions for the ServiceAccount"
 kubectl --kubeconfig "$KUBECONFIG_FILE" create clusterrolebinding sshx-admin \
   --clusterrole=cluster-admin \
-  --serviceaccount="$NAMESPACE:default"
+  --serviceaccount="$NAMESPACE:sshx-shell"
 
 echo "👉 Creating in-cluster kubeconfig ConfigMap"
 cat <<EOF | kubectl --kubeconfig "$KUBECONFIG_FILE" -n "$NAMESPACE" apply -f -
@@ -63,60 +63,69 @@ EOF
 
 echo "👉 Creating Pod with tools installed"
 cat <<'EOF' | kubectl --kubeconfig "$KUBECONFIG_FILE" -n "$NAMESPACE" apply -f -
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: sshx-shell
 spec:
-  serviceAccountName: default
-  securityContext:
-    fsGroup: 1000
-  containers:
-  - name: shell
-    image: ubuntu:24.04
-    command: ["/bin/sh", "-c"]
-    args:
-      - |
-        set -eux
-        apt-get update && apt-get install -y bash curl openssh-client coreutils
-        # apt-get install -y tmate
-        KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt || echo "v1.27.3")
-        curl -LO "https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl"
-        chmod +x kubectl && mv kubectl /usr/local/bin/
-        mkdir -p /root/.kube
-        cp /config/kubeconfig.yaml /root/.kube/config
-        # alternativa instalar tmate
-        # tmate -F
-        curl -sSf https://sshx.io/get | sh
-        sshx
-    stdin: true
-    tty: true
-    volumeMounts:
-    - name: kubeconfig
-      mountPath: /config
-    securityContext:
-      runAsUser: 0
-      runAsGroup: 0
-      runAsNonRoot: false
-      allowPrivilegeEscalation: false
-      privileged: false
-      capabilities:
-        drop: ["ALL"]
-        add: ["SETUID", "SETGID", "CHOWN", "DAC_OVERRIDE", "FOWNER"]
-      seccompProfile:
-        type: RuntimeDefault
-  volumes:
-  - name: kubeconfig
-    configMap:
-      name: kubeconfig-cm
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sshx-shell
+  template:
+    metadata:
+      labels:
+        app: sshx-shell
+    spec:
+      serviceAccountName: sshx-shell
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: shell
+        image: ubuntu:24.04
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            set -eux
+            apt-get update && apt-get install -y bash curl openssh-client coreutils
+            # apt-get install -y tmate
+            KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt || echo "v1.27.3")
+            curl -LO "https://dl.k8s.io/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl"
+            chmod +x kubectl && mv kubectl /usr/local/bin/
+            mkdir -p /root/.kube
+            cp /config/kubeconfig.yaml /root/.kube/config
+            # alternative: install tmate
+            # tmate -F
+            curl -sSf https://sshx.io/get | sh
+            sshx
+        stdin: true
+        tty: true
+        volumeMounts:
+        - name: kubeconfig
+          mountPath: /config
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          runAsNonRoot: false
+          allowPrivilegeEscalation: false
+          privileged: false
+          capabilities:
+            drop: ["ALL"]
+            add: ["SETUID", "SETGID", "CHOWN", "DAC_OVERRIDE", "FOWNER"]
+          seccompProfile:
+            type: RuntimeDefault
+      volumes:
+      - name: kubeconfig
+        configMap:
+          name: kubeconfig-cm
 EOF
 
 echo "👉 Waiting for Pod to start..."
-kubectl --kubeconfig "$KUBECONFIG_FILE" -n "$NAMESPACE" wait --for=condition=Ready pod/$POD_NAME --timeout=120s
+kubectl --kubeconfig "$KUBECONFIG_FILE" -n "$NAMESPACE" wait --for=condition=Available deployment/sshx-shell --timeout=120s
 
 echo
 echo "✅ Environment ready!"
 echo "Use this command to see the sshx link (SSH/WEB):"
-echo "  kubectl --kubeconfig $KUBECONFIG_FILE -n $NAMESPACE logs -f $POD_NAME"
+echo "  kubectl --kubeconfig $KUBECONFIG_FILE -n $NAMESPACE logs -f -l app=sshx-shell"
 echo
 echo "Once you open the sshx link, you will have access to the Pod shell with kubectl configured for the newly created Kind cluster."
