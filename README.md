@@ -39,21 +39,21 @@ The script will automatically wait until the pod is fully running.
 ### Access the shared pod environment
 
 ```bash
-kubectl --kubeconfig ./kubeconfig-kind.yaml -n tmate-ns logs -f tmate-shell
+kubectl --kubeconfig ./kubeconfig-kind.yaml -n sshx-ns logs -f sshx-shell
 ```
 Once you open the link displayed in the logs, you will have access to a shell inside the pod with kubectl pre-configured for the Kind cluster.
 
 ### Uninstall
 
 ```bash
-kind delete clusters kind-tmate
+kind delete clusters kind-sshx
 ```
 
 ## How It Works
-- Creates a multi-node Kind cluster (kind-tmate) with a dedicated kubeconfig file.
-- Sets up a namespace (tmate-ns) and a service account with cluster-admin permissions.
+- Creates a multi-node Kind cluster (kind-sshx) with a dedicated kubeconfig file.
+- Sets up a namespace (sshx-ns) and a service account with cluster-admin permissions.
 - Creates a ConfigMap with the kubeconfig file for in-cluster access.
-- Deploys a pod (tmate-shell) with:
+- Deploys a pod (sshx-shell) with:
   - kubectl installed and configured
   - Essential tools: bash, curl, coreutils
   - sshx installed for remote shared access
@@ -64,7 +64,7 @@ kind delete clusters kind-tmate
 - The pod is ephemeral. You can delete the cluster with:
 
 ```bash
-kind delete cluster --name kind-tmate
+kind delete cluster --name kind-sshx
 ```
 
 ### Tested on:

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CLUSTER_NAME="kind-tmate"
+CLUSTER_NAME="kind-sshx"
 KUBECONFIG_FILE="$(pwd)/kubeconfig-kind.yaml"
-NAMESPACE="tmate-ns"
-POD_NAME="tmate-shell"
+NAMESPACE="sshx-ns"
+POD_NAME="sshx-shell"
 
 echo "Tested on Kind v0.29.0, Go 1.24.2, Linux/amd64"
 echo
@@ -30,7 +30,7 @@ kubectl --kubeconfig "$KUBECONFIG_FILE" -n "$NAMESPACE" create configmap kubecon
   | kubectl --kubeconfig "$KUBECONFIG_FILE" -n "$NAMESPACE" apply -f -
 
 echo "👉 Ensuring admin permissions for the ServiceAccount"
-kubectl --kubeconfig "$KUBECONFIG_FILE" create clusterrolebinding tmate-admin \
+kubectl --kubeconfig "$KUBECONFIG_FILE" create clusterrolebinding sshx-admin \
   --clusterrole=cluster-admin \
   --serviceaccount="$NAMESPACE:default"
 
@@ -66,7 +66,7 @@ cat <<'EOF' | kubectl --kubeconfig "$KUBECONFIG_FILE" -n "$NAMESPACE" apply -f -
 apiVersion: v1
 kind: Pod
 metadata:
-  name: tmate-shell
+  name: sshx-shell
 spec:
   serviceAccountName: default
   securityContext:
